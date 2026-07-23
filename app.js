@@ -37,8 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const normalizedExpected = EXPECTED_COLUMNS.map(c => ({ ...c, norm: normalize(c.key) }));
 
     // ── State ─────────────────────────────────────────────────────────────────
-    let workbook   = null;
-    let parsedData = null;
+    let workbook      = null;
+    let parsedData    = null;
+    let parsedColumns = [];
 
     // ── DOM ───────────────────────────────────────────────────────────────────
     const dropZone       = document.getElementById('drop-zone');
@@ -105,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Sheet Processing ──────────────────────────────────────────────────────
     function processSheet(sheetName) {
         parsedData = null;
+        parsedColumns = [];
         actionsArea.classList.add('hidden');
         previewSection.innerHTML = '';
         previewSection.classList.add('hidden');
@@ -130,8 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const rawHeaders = rows[headerRowIndex].map(h => String(h || '').trim());
         const columnMap  = buildColumnMap(rawHeaders);
 
-        // 3. Parse data rows
-        const { data, skipped } = parseRows(rows, headerRowIndex, rawHeaders);
+        // 3. Parse data rows — sheet row order is preserved exactly
+        const { data, skipped, columns } = parseRows(rows, headerRowIndex, rawHeaders);
 
         if (data.length === 0) {
             showStatus(
@@ -169,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
             parsedData = data;
+            parsedColumns = columns;
             actionsArea.classList.remove('hidden');
         }
 
@@ -230,8 +233,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Convert rows after the header row into objects keyed by canonical name.
     // Rows with fewer than 2 non-empty cells are skipped.
+    //
+    // Ordering contract — the app renders whatever this produces, as-is:
+    //   • rows are appended in sheet order, top to bottom, so re-sorting the
+    //     spreadsheet and re-uploading is all it takes to re-sort the app;
+    //   • `columns` lists the keys in sheet column order, left to right.
+    // Neither is re-sorted anywhere downstream.
     function parseRows(rows, headerRowIndex, rawHeaders) {
         const rawToCanonical = buildRawToCanonical(rawHeaders);
+        const columns = [];
+        rawHeaders.forEach(h => {
+            if (!h) return;
+            const key = rawToCanonical[h] || h; // canonical if recognised, else keep raw
+            if (!columns.includes(key)) columns.push(key);
+        });
+
         const data = [];
         let skipped = 0;
 
@@ -243,13 +259,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const obj = {};
             rawHeaders.forEach((h, j) => {
                 if (!h) return;
-                const key = rawToCanonical[h] || h; // canonical if recognised, else keep raw
+                const key = rawToCanonical[h] || h;
                 obj[key] = row[j] !== undefined ? row[j] : '';
             });
             data.push(obj);
         }
 
-        return { data, skipped };
+        return { data, skipped, columns };
     }
 
     // ── Preview Rendering ─────────────────────────────────────────────────────
@@ -265,7 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 `<i class="fa-solid fa-circle-check" style="color:#2e7d32"></i> ` +
                 `Headers on <strong>row ${headerRowIndex + 1}</strong> of <strong>"${sheetName}"</strong> — ` +
                 `<strong>${data.length}</strong> strategies found` +
-                (skipped > 0 ? `, <strong>${skipped}</strong> blank rows skipped` : '') + '.';
+                (skipped > 0 ? `, <strong>${skipped}</strong> blank rows skipped` : '') + '.' +
+                `<br><span class="detection-note">Row order is kept exactly as it appears in the sheet — ` +
+                `re-sort the spreadsheet and re-upload to change the order shown in the app.</span>`;
         } else {
             detectionDiv.innerHTML =
                 `<i class="fa-solid fa-circle-xmark" style="color:#c62828"></i> ` +
@@ -361,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetUI() {
         workbook = null;
         parsedData = null;
+        parsedColumns = [];
         actionsArea.classList.add('hidden');
         sheetPicker.classList.add('hidden');
         previewSection.innerHTML = '';
@@ -371,7 +390,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Download ──────────────────────────────────────────────────────────────
     downloadBtn.addEventListener('click', () => {
         if (!parsedData) return;
-        const jsonStr = JSON.stringify(parsedData, null, 2);
+        // `columns` is written out explicitly so the sheet's column order does not
+        // depend on JS object key ordering; `strategies` keeps the sheet's row order.
+        const jsonStr = JSON.stringify({ columns: parsedColumns, strategies: parsedData }, null, 2);
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');

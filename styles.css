@@ -263,13 +263,19 @@ h1, h2, h3 {
 
 .preview-detection {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.5rem;
     background: #f0f7fb;
     border-bottom: 1px solid #d0e8f5;
     padding: 0.85rem 1.5rem;
     font-size: 0.875rem;
     color: var(--brand-dark-blue);
+    line-height: 1.6;
+}
+
+.detection-note {
+    font-size: 0.8rem;
+    color: var(--text-muted, #666);
 }
 
 /* ── Column checklist ────────────────────────────────────────────────────── */
