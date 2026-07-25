@@ -21,9 +21,11 @@ reads. Runs entirely in the browser — nothing is uploaded to a server.
    - The **Column Detection** checklist shows every expected column as found (✓).
    - The **Sample Data** table shows the first few rows — confirm they look right.
 4. Click **Download data.json**.
-5. Push that file to the Maximizer — see
-   [the Maximizer README](https://github.com/Cash-Is-Clear/maximizer#updating-the-data)
-   (edit the Gist; no code change needed).
+5. Put that file into the Maximizer: edit
+   [`data.json` in the maximizer repo](https://github.com/Cash-Is-Clear/maximizer/blob/main/data.json)
+   on GitHub (pencil icon → paste, or *Add file → Upload files* to drop it in) and
+   **Commit changes**. No code change needed — see
+   [the Maximizer README](https://github.com/Cash-Is-Clear/maximizer#updating-the-data-no-coding-required).
 
 ## What it produces
 
